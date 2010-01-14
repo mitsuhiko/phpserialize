@@ -90,7 +90,7 @@ r"""
     Starting with 1.2 you can provide an array hook to the unserialization
     functions that are invoked with a list of pairs to return a real array
     object.  By default `dict` is used as array object which however means
-    that the information about the order is list for associative arrays.
+    that the information about the order is lost for associative arrays.
 
     For example you can pass the ordered dictionary to the unserilization
     functions:
@@ -132,7 +132,7 @@ r"""
     ...     cls = {'WP_User': User}[name]
     ...     return cls(**d)
     ...
-    >>> user = loads(data, object_hook=phpobject)
+    >>> user = loads(data, object_hook=object_hook)
     >>> user.username
     'admin'
 
@@ -227,12 +227,12 @@ r"""
 
     1.2
         -   added support for object serialization
-        -   added support for array hooks.
+        -   added support for array hooks
 
     1.1
         -   added `dict_to_list` and `dict_to_tuple`
         -   added support for unicode
-        -   allowed chaining of objects like pickle does.
+        -   allowed chaining of objects like pickle does
 
 
     :copyright: 2007-2008 by Armin Ronacher.
