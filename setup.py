@@ -25,7 +25,7 @@ setup(
     author='Armin Ronacher',
     author_email='armin.ronacher@active-4.com',
     version='1.2',
-    url='http://dev.pocoo.org/hg/phpserialize-main',
+    url='http://github.com/mitsuhiko/phpserialize',
     py_modules=['phpserialize'],
     description='a port of the serialize and unserialize '
                 'functions of php to python.',
