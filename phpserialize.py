@@ -367,6 +367,14 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
                 s.write(obj)
                 s.write('";')
                 return s.getvalue()
+            if isinstance(obj, bytes):
+                s = BytesIO()
+                s.write(b's:')
+                s.write(str(len(obj)).encode(charset))
+                s.write(b':"')
+                s.write(obj)
+                s.write(b'";')
+                return s.getvalue()
             if isinstance(obj, (list, tuple, dict)):
                 out = []
                 if isinstance(obj, dict):
@@ -498,7 +506,7 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
 
     ret = _unserialize()
 
-    if py3k and hasattr(ret, 'decode'):
+    if py3k and decode_strings and hasattr(ret, 'decode'):
         ret = ret.decode(charset)
 
     return ret

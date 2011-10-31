@@ -19,6 +19,10 @@ def test_dumps_unicode():
     assert phpserialize.dumps('Björk Guðmundsdóttir') == b's:23:"Bj\xc3\xb6rk Gu\xc3\xb0mundsd\xc3\xb3ttir";'
 
 
+def test_dumps_binary():
+    assert phpserialize.dumps(b'\001\002\003') == b's:3:"\x01\x02\x03";'
+
+
 def test_dumps_list():
     assert phpserialize.dumps([7, 8, 9]) == b'a:3:{i:0;i:7;i:1;i:8;i:2;i:9;}'
 
@@ -37,6 +41,10 @@ def test_loads_dict():
 
 def test_loads_unicode():
     assert phpserialize.loads(b's:23:"Bj\xc3\xb6rk Gu\xc3\xb0mundsd\xc3\xb3ttir";', decode_strings=True) == b'Bj\xc3\xb6rk Gu\xc3\xb0mundsd\xc3\xb3ttir'.decode('utf-8')
+
+
+def test_loads_binary():
+    assert phpserialize.loads(b's:3:"\001\002\003";', decode_strings=False) == b'\001\002\003'
 
 
 def test_dumps_and_loads_dict():
