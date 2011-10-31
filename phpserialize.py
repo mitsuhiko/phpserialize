@@ -238,7 +238,32 @@ r"""
     :copyright: 2007-2008 by Armin Ronacher.
     license: BSD
 """
-from StringIO import StringIO
+
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import BytesIO as BytesIO
+    from io import StringIO as StringIO
+
+try:
+    unicode
+except NameError:
+    # Python 3
+    basestring = unicode = str
+    py3k = True
+else:
+    py3k = False
+
+try:
+    long
+except NameError:
+    # Python 3
+    long = int
+
+try:
+    xrange
+except NameError:
+    xrange = range
 
 __author__ = 'Armin Ronacher <armin.ronacher@active-4.com>'
 __version__ = '1.1'
@@ -267,7 +292,7 @@ class phpobject(object):
         return convert_member_dict(self.__php_vars__)
 
     def _lookup_php_var(self, name):
-        for key, value in self.__php_vars__.iteritems():
+        for key, value in self.__php_vars__.items():
             if _translate_member_name(key) == name:
                 return key, value
 
@@ -297,7 +322,7 @@ def convert_member_dict(d):
     ...                      "default", " * is_active": True})
     {'username': 'user1', 'password': 'default', 'is_active': True}
     """
-    return dict((_translate_member_name(k), v) for k, v in d.iteritems())
+    return dict((_translate_member_name(k), v) for k, v in d.items())
 
 
 def dumps(data, charset='utf-8', errors='strict', object_hook=None):
@@ -309,9 +334,16 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, (int, long, float, bool)):
                 return 'i:%i;' % obj
             if isinstance(obj, basestring):
+                encoded_obj = obj
                 if isinstance(obj, unicode):
-                    obj = obj.encode(charset, errors)
-                return 's:%i:"%s";' % (len(obj), obj)
+                    encoded_obj = obj.encode(charset, errors)
+                s = StringIO()
+                s.write('s:')
+                s.write(str(len(encoded_obj)))
+                s.write(':"')
+                s.write(obj)
+                s.write('";')
+                return s.getvalue()
             if obj is None:
                 return 's:0:"";'
             raise TypeError('can\'t serialize %r as key' % type(obj))
@@ -325,13 +357,20 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if isinstance(obj, float):
                 return 'd:%s;' % obj
             if isinstance(obj, basestring):
+                encoded_obj = obj
                 if isinstance(obj, unicode):
-                    obj = obj.encode(charset, errors)
-                return 's:%i:"%s";' % (len(obj), obj)
+                    encoded_obj = obj.encode(charset, errors)
+                s = StringIO()
+                s.write('s:')
+                s.write(str(len(encoded_obj)))
+                s.write(':"')
+                s.write(obj)
+                s.write('";')
+                return s.getvalue()
             if isinstance(obj, (list, tuple, dict)):
                 out = []
                 if isinstance(obj, dict):
-                    iterable = obj.iteritems()
+                    iterable = obj.items()
                 else:
                     iterable = enumerate(obj)
                 for key, value in iterable:
@@ -346,7 +385,13 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
             if object_hook is not None:
                 return _serialize(object_hook(obj), False)
             raise TypeError('can\'t serialize %r' % type(obj))
-    return _serialize(data, False)
+
+    ret = _serialize(data, False)
+
+    if py3k and hasattr(ret, 'encode'):
+        ret = ret.encode(charset)
+
+    return ret
 
 
 def load(fp, charset='utf-8', errors='strict', decode_strings=False,
@@ -378,6 +423,8 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
 
     def _expect(e):
         v = fp.read(len(e))
+        if py3k:
+            v = v.decode(charset)
         if v != e:
             raise ValueError('failed expectation, expected %r got %r' % (e, v))
 
@@ -385,6 +432,8 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
         buf = []
         while 1:
             char = fp.read(1)
+            if py3k:
+                char = char.decode(charset)
             if char == delim:
                 break
             elif not char:
@@ -409,6 +458,8 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
 
     def _unserialize():
         type_ = fp.read(1).lower()
+        if py3k:
+            type_ = type_.decode(charset)
         if type_ == 'n':
             _expect(';')
             return None
@@ -445,7 +496,12 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
             return object_hook(name, dict(_load_array()))
         raise ValueError('unexpected opcode')
 
-    return _unserialize()
+    ret = _unserialize()
+
+    if py3k and hasattr(ret, 'decode'):
+        ret = ret.decode(charset)
+
+    return ret
 
 
 def loads(data, charset='utf-8', errors='strict', decode_strings=False,
@@ -453,8 +509,12 @@ def loads(data, charset='utf-8', errors='strict', decode_strings=False,
     """Read a PHP-serialized object hierarchy from a string.  Characters in the
     string past the object's representation are ignored.
     """
-    return load(StringIO(data), charset, errors, decode_strings,
-                object_hook, array_hook)
+    if py3k:
+        return load(BytesIO(data), charset, errors, decode_strings,
+                    object_hook, array_hook)
+    else:
+        return load(StringIO(data), charset, errors, decode_strings,
+                    object_hook, array_hook)
 
 
 def dump(data, fp, charset='utf-8', errors='strict', object_hook=None):
