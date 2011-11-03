@@ -31,6 +31,7 @@ setup(
                 'functions of php to python.',
     long_description=get_docs(),
     zip_safe=False,
+    test_suite='tests',
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Programming Language :: PHP',
