@@ -24,14 +24,13 @@ setup(
     name='phpserialize',
     author='Armin Ronacher',
     author_email='armin.ronacher@active-4.com',
-    version='1.2',
-    url='http://github.com/mitsuhiko/phpserialize',
+    version='1.3',
+    url='http://dev.pocoo.org/hg/phpserialize-main',
     py_modules=['phpserialize'],
     description='a port of the serialize and unserialize '
                 'functions of php to python.',
     long_description=get_docs(),
     zip_safe=False,
-    test_suite='tests',
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Programming Language :: PHP',
