@@ -1,8 +1,5 @@
 import os
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
 
 def get_docs():
     result = []
@@ -31,6 +28,7 @@ setup(
                 'functions of php to python.',
     long_description=get_docs(),
     zip_safe=False,
+    test_suite='tests',
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Programming Language :: PHP',
