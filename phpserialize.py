@@ -484,6 +484,8 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
             _expect(b'"')
             name = fp.read(name_length)
             _expect(b'":')
+            if decode_strings:
+                name = name.decode(charset, errors)
             return object_hook(name, dict(_load_array()))
         raise ValueError('unexpected opcode')
 

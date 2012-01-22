@@ -71,6 +71,27 @@ class PhpSerializeTestCase(unittest.TestCase):
         self.assertEqual(phpserialize.load(f), {0: 1, 1: 2})
         self.assertEqual(phpserialize.load(f), 42)
 
+    def test_object_hook(self):
+        class User(object):
+            def __init__(self, username):
+                self.username = username
+
+        def load_object_hook(name, d):
+            return {'WP_User': User}[name](**d)
+
+        def dump_object_hook(obj):
+            if isinstance(obj, User):
+                return phpserialize.phpobject('WP_User', {'username': obj.username})
+            raise LookupError('unknown object')
+
+        user = User('test')
+        x = phpserialize.dumps(user, object_hook=dump_object_hook)
+        y = phpserialize.loads(x, object_hook=load_object_hook,
+                               decode_strings=True)
+        self.assert_(b'WP_User' in x)
+        self.assertEqual(type(y), type(user))
+        self.assertEqual(y.username, user.username)
+
 
 if __name__ == '__main__':
     unittest.main()
