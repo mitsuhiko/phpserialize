@@ -235,7 +235,7 @@ r"""
         -   allowed chaining of objects like pickle does
 
 
-    :copyright: 2007-2008 by Armin Ronacher.
+    :copyright: 2007-2012 by Armin Ronacher.
     license: BSD
 """
 
@@ -263,7 +263,7 @@ except NameError:
     xrange = range
 
 __author__ = 'Armin Ronacher <armin.ronacher@active-4.com>'
-__version__ = '1.1'
+__version__ = '1.3'
 __all__ = ('phpobject', 'convert_member_dict', 'dict_to_list', 'dict_to_tuple',
            'load', 'loads', 'dump', 'dumps', 'serialize', 'unserialize')
 
