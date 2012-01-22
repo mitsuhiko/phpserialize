@@ -1,2 +1,2 @@
 test:
-	python setup.py test
+	python tests.py

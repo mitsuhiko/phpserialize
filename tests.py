@@ -50,3 +50,27 @@ class PhpSerializeTestCase(unittest.TestCase):
     def test_dumps_and_loads_dict(self):
         self.assertEqual(phpserialize.loads(phpserialize.dumps({'a': 1, 'b': 2, 'c': 3}),
                          decode_strings=True), {'a': 1, 'b': 2, 'c': 3})
+
+    def test_list_roundtrips(self):
+        x = phpserialize.loads(phpserialize.dumps(list(range(2))))
+        self.assertEqual(x, {0: 0, 1: 1})
+        y = phpserialize.dict_to_list(x)
+        self.assertEqual(y, [0, 1])
+
+    def test_tuple_roundtrips(self):
+        x = phpserialize.loads(phpserialize.dumps(list(range(2))))
+        self.assertEqual(x, {0: 0, 1: 1})
+        y = phpserialize.dict_to_tuple(x)
+        self.assertEqual(y, (0, 1))
+
+    def test_fileio_support_with_chaining_and_all(self):
+        f = phpserialize.BytesIO()
+        phpserialize.dump([1, 2], f)
+        phpserialize.dump(42, f)
+        f = phpserialize.BytesIO(f.getvalue())
+        self.assertEqual(phpserialize.load(f), {0: 1, 1: 2})
+        self.assertEqual(phpserialize.load(f), 42)
+
+
+if __name__ == '__main__':
+    unittest.main()

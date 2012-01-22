@@ -240,19 +240,16 @@ r"""
 """
 
 try:
-    from StringIO import StringIO
+    from StringIO import StringIO as BytesIO
 except ImportError:
     from io import BytesIO as BytesIO
-    from io import StringIO as StringIO
 
 try:
     unicode
 except NameError:
     # Python 3
-    basestring = unicode = str
-    py3k = True
-else:
-    py3k = False
+    unicode = str
+    basestring = (bytes, str)
 
 try:
     long
@@ -327,52 +324,45 @@ def convert_member_dict(d):
 
 def dumps(data, charset='utf-8', errors='strict', object_hook=None):
     """Return the PHP-serialized representation of the object as a string,
-    instead of writing it to a file like `dump` does.
+    instead of writing it to a file like `dump` does.  On Python 3
+    this returns bytes objects, on Python 3 this returns bytestrings.
     """
     def _serialize(obj, keypos):
         if keypos:
             if isinstance(obj, (int, long, float, bool)):
-                return 'i:%i;' % obj
+                return ('i:%i;' % obj).encode('latin1')
             if isinstance(obj, basestring):
                 encoded_obj = obj
                 if isinstance(obj, unicode):
                     encoded_obj = obj.encode(charset, errors)
-                s = StringIO()
-                s.write('s:')
-                s.write(str(len(encoded_obj)))
-                s.write(':"')
-                s.write(obj)
-                s.write('";')
+                s = BytesIO()
+                s.write(b's:')
+                s.write(str(len(encoded_obj)).encode('latin1'))
+                s.write(b':"')
+                s.write(encoded_obj)
+                s.write(b'";')
                 return s.getvalue()
             if obj is None:
-                return 's:0:"";'
+                return b's:0:"";'
             raise TypeError('can\'t serialize %r as key' % type(obj))
         else:
             if obj is None:
-                return 'N;'
+                return b'N;'
             if isinstance(obj, bool):
-                return 'b:%i;' % obj
+                return ('b:%i;' % obj).encode('latin1')
             if isinstance(obj, (int, long)):
-                return 'i:%s;' % obj
+                return ('i:%s;' % obj).encode('latin1')
             if isinstance(obj, float):
-                return 'd:%s;' % obj
+                return ('d:%s;' % obj).encode('latin1')
             if isinstance(obj, basestring):
                 encoded_obj = obj
                 if isinstance(obj, unicode):
                     encoded_obj = obj.encode(charset, errors)
-                s = StringIO()
-                s.write('s:')
-                s.write(str(len(encoded_obj)))
-                s.write(':"')
-                s.write(obj)
-                s.write('";')
-                return s.getvalue()
-            if isinstance(obj, bytes):
                 s = BytesIO()
                 s.write(b's:')
-                s.write(str(len(obj)).encode(charset))
+                s.write(str(len(encoded_obj)).encode('latin1'))
                 s.write(b':"')
-                s.write(obj)
+                s.write(encoded_obj)
                 s.write(b'";')
                 return s.getvalue()
             if isinstance(obj, (list, tuple, dict)):
@@ -384,22 +374,21 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
                 for key, value in iterable:
                     out.append(_serialize(key, True))
                     out.append(_serialize(value, False))
-                return 'a:%i:{%s}' % (len(obj), ''.join(out))
+                return b''.join([
+                    b'a:',
+                    str(len(obj)).encode('latin1'),
+                    b':{',
+                    b''.join(out),
+                    b'}'
+                ])
             if isinstance(obj, phpobject):
-                return 'O%s%s' % (
-                    _serialize(obj.__name__, True)[1:-1],
-                    _serialize(obj.__php_vars__, False)[1:]
-                )
+                return b'O' + _serialize(obj.__name__, True)[1:-1] + \
+                       _serialize(obj.__php_vars__, False)[1:]
             if object_hook is not None:
                 return _serialize(object_hook(obj), False)
             raise TypeError('can\'t serialize %r' % type(obj))
 
-    ret = _serialize(data, False)
-
-    if py3k and hasattr(ret, 'encode'):
-        ret = ret.encode(charset)
-
-    return ret
+    return _serialize(data, False)
 
 
 def load(fp, charset='utf-8', errors='strict', decode_strings=False,
@@ -410,8 +399,8 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
 
     `fp` must provide a `read()` method that takes an integer argument.  Both
     method should return strings.  Thus `fp` can be a file object opened for
-    reading, a `StringIO` object, or any other custom object that meets this
-    interface.
+    reading, a `StringIO` object (`BytesIO` on Python 3), or any other custom
+    object that meets this interface.
 
     `load` will read exactly one object from the stream.  See the docstring of
     the module for this chained behavior.
@@ -431,8 +420,6 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
 
     def _expect(e):
         v = fp.read(len(e))
-        if py3k:
-            v = v.decode(charset)
         if v != e:
             raise ValueError('failed expectation, expected %r got %r' % (e, v))
 
@@ -440,18 +427,16 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
         buf = []
         while 1:
             char = fp.read(1)
-            if py3k:
-                char = char.decode(charset)
             if char == delim:
                 break
             elif not char:
                 raise ValueError('unexpected end of stream')
             buf.append(char)
-        return ''.join(buf)
+        return b''.join(buf)
 
     def _load_array():
-        items = int(_read_until(':')) * 2
-        _expect('{')
+        items = int(_read_until(b':')) * 2
+        _expect(b'{')
         result = []
         last_item = Ellipsis
         for idx in xrange(items):
@@ -461,68 +446,58 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
             else:
                 result.append((last_item, item))
                 last_item = Ellipsis
-        _expect('}')
+        _expect(b'}')
         return result
 
     def _unserialize():
         type_ = fp.read(1).lower()
-        if py3k:
-            type_ = type_.decode(charset)
-        if type_ == 'n':
-            _expect(';')
+        if type_ == b'n':
+            _expect(b';')
             return None
-        if type_ in 'idb':
-            _expect(':')
-            data = _read_until(';')
-            if type_ == 'i':
+        if type_ in b'idb':
+            _expect(b':')
+            data = _read_until(b';')
+            if type_ == b'i':
                 return int(data)
-            if type_ == 'd':
+            if type_ == b'd':
                 return float(data)
             return int(data) != 0
-        if type_ == 's':
-            _expect(':')
-            length = int(_read_until(':'))
-            _expect('"')
+        if type_ == b's':
+            _expect(b':')
+            length = int(_read_until(b':'))
+            _expect(b'"')
             data = fp.read(length)
-            _expect('"')
+            _expect(b'"')
             if decode_strings:
                 data = data.decode(charset, errors)
-            _expect(';')
+            _expect(b';')
             return data
-        if type_ == 'a':
-            _expect(':')
+        if type_ == b'a':
+            _expect(b':')
             return array_hook(_load_array())
-        if type_ == 'o':
+        if type_ == b'o':
             if object_hook is None:
                 raise ValueError('object in serialization dump but '
                                  'object_hook not given.')
-            _expect(':')
-            name_length = int(_read_until(':'))
-            _expect('"')
+            _expect(b':')
+            name_length = int(_read_until(b':'))
+            _expect(b'"')
             name = fp.read(name_length)
-            _expect('":')
+            _expect(b'":')
             return object_hook(name, dict(_load_array()))
         raise ValueError('unexpected opcode')
 
-    ret = _unserialize()
-
-    if py3k and decode_strings and hasattr(ret, 'decode'):
-        ret = ret.decode(charset)
-
-    return ret
+    return _unserialize()
 
 
 def loads(data, charset='utf-8', errors='strict', decode_strings=False,
           object_hook=None, array_hook=None):
     """Read a PHP-serialized object hierarchy from a string.  Characters in the
-    string past the object's representation are ignored.
+    string past the object's representation are ignored.  On Python 3 the
+    string must be a bytestring.
     """
-    if py3k:
-        return load(BytesIO(data), charset, errors, decode_strings,
-                    object_hook, array_hook)
-    else:
-        return load(StringIO(data), charset, errors, decode_strings,
-                    object_hook, array_hook)
+    return load(BytesIO(data), charset, errors, decode_strings,
+                object_hook, array_hook)
 
 
 def dump(data, fp, charset='utf-8', errors='strict', object_hook=None):
@@ -531,8 +506,9 @@ def dump(data, fp, charset='utf-8', errors='strict', object_hook=None):
     of `errors`.
 
     `fp` must have a `write()` method that accepts a single string argument.
-    It can thus be a file object opened for writing, a `StringIO` object, or
-    any other custom object that meets this interface.
+    It can thus be a file object opened for writing, a `StringIO` object
+    (or a `BytesIO` object on Python 3), or any other custom object that meets
+    this interface.
 
     The `object_hook` is called for each unknown object and has to either
     raise an exception if it's unable to convert the object or return a
@@ -559,18 +535,3 @@ def dict_to_tuple(d):
 
 serialize = dumps
 unserialize = loads
-
-
-if __name__ == '__main__':
-    def _runtests():
-        import doctest
-        import collections
-        # make the unittests pass on old pythons
-        if not hasattr(collections, 'OrderedDict'):
-            class _ODict(list):
-                def __repr__(self):
-                    return 'collections.OrderedDict(%s)' % list.__repr__(self)
-            collections.OrderedDict = _ODict
-        doctest.testmod()
-
-    _runtests()
