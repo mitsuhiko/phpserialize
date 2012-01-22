@@ -92,6 +92,13 @@ class PhpSerializeTestCase(unittest.TestCase):
         self.assertEqual(type(y), type(user))
         self.assertEqual(y.username, user.username)
 
+    def test_basic_object_hook(self):
+        data = b'O:7:"WP_User":1:{s:8:"username";s:5:"admin";}'
+        user = phpserialize.loads(data, object_hook=phpserialize.phpobject,
+                                  decode_strings=True)
+        self.assertEqual(user.username, 'admin')
+        self.assertEqual(user.__name__, 'WP_User')
+
 
 if __name__ == '__main__':
     unittest.main()

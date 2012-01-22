@@ -222,8 +222,22 @@ r"""
     >>> d['username']
     'admin'
 
+    Python 3 Notes
+    ==============
+
+    Because the unicode support in Python 3 no longer transparently
+    handles bytes and unicode objects we had to change the way the
+    decoding works.  On Python 3 you most likely want to always
+    decode strings.  Because this would totally fail on binary data
+    phpserialize uses the "surrogateescape" method to not fail on
+    invalid data.  See the documentation in Python 3 for more
+    information.
+
     Changelog
     =========
+
+    1.3
+        -   added support for Python 3
 
     1.2
         -   added support for object serialization
@@ -238,6 +252,12 @@ r"""
     :copyright: 2007-2012 by Armin Ronacher.
     license: BSD
 """
+import codecs
+try:
+    codecs.lookup_error('surrogateescape')
+    default_errors = 'surrogateescape'
+except LookupError:
+    default_errors = 'strict'
 
 try:
     from StringIO import StringIO as BytesIO
@@ -322,7 +342,7 @@ def convert_member_dict(d):
     return dict((_translate_member_name(k), v) for k, v in d.items())
 
 
-def dumps(data, charset='utf-8', errors='strict', object_hook=None):
+def dumps(data, charset='utf-8', errors=default_errors, object_hook=None):
     """Return the PHP-serialized representation of the object as a string,
     instead of writing it to a file like `dump` does.  On Python 3
     this returns bytes objects, on Python 3 this returns bytestrings.
@@ -391,7 +411,7 @@ def dumps(data, charset='utf-8', errors='strict', object_hook=None):
     return _serialize(data, False)
 
 
-def load(fp, charset='utf-8', errors='strict', decode_strings=False,
+def load(fp, charset='utf-8', errors=default_errors, decode_strings=False,
          object_hook=None, array_hook=None):
     """Read a string from the open file object `fp` and interpret it as a
     data stream of PHP-serialized objects, reconstructing and returning
@@ -492,7 +512,7 @@ def load(fp, charset='utf-8', errors='strict', decode_strings=False,
     return _unserialize()
 
 
-def loads(data, charset='utf-8', errors='strict', decode_strings=False,
+def loads(data, charset='utf-8', errors=default_errors, decode_strings=False,
           object_hook=None, array_hook=None):
     """Read a PHP-serialized object hierarchy from a string.  Characters in the
     string past the object's representation are ignored.  On Python 3 the
@@ -502,7 +522,7 @@ def loads(data, charset='utf-8', errors='strict', decode_strings=False,
                 object_hook, array_hook)
 
 
-def dump(data, fp, charset='utf-8', errors='strict', object_hook=None):
+def dump(data, fp, charset='utf-8', errors=default_errors, object_hook=None):
     """Write a PHP-serialized representation of obj to the open file object
     `fp`.  Unicode strings are encoded to `charset` with the error handling
     of `errors`.
