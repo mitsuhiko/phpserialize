@@ -32,6 +32,7 @@ setup(
     classifiers=[
         'License :: OSI Approved :: BSD License',
         'Programming Language :: PHP',
-        'Programming Language :: Python'
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3'
     ]
 )
